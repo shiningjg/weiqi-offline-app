@@ -1,0 +1,19 @@
+{
+  "name": "单机围棋 · Weiqi",
+  "short_name": "单机围棋",
+  "description": "纯本地、离线运行的围棋应用：双人对弈与人机对战，含启发式 AI 与中国规则数子。",
+  "start_url": "index.html",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1f2125",
+  "theme_color": "#1f2125",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

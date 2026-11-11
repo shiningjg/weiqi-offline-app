@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>单机围棋 · Weiqi</title>
+<meta name="theme-color" content="#1f2125">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="单机围棋">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23e3b06b'/%3E%3Ccircle cx='38' cy='42' r='20' fill='%23111'/%3E%3Ccircle cx='64' cy='60' r='20' fill='%23fafafa' stroke='%23bbb'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23e3b06b'/%3E%3Ccircle cx='38' cy='42' r='20' fill='%23111'/%3E%3Ccircle cx='64' cy='60' r='20' fill='%23fafafa' stroke='%23bbb'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --wood:#e3b06b; --wood2:#d59d4f; --line:#3a2a14;
+    --bg:#1f2125; --panel:#2b2e34; --panel2:#33373f; --text:#e8e8e8;
+    --muted:#9aa0aa; --accent:#4aa3ff; --accent2:#ffb02e; --danger:#ff5b5b;
+    --ok:#46c07a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+  body{display:flex; flex-direction:column; min-height:100vh;}
+  header{padding:14px 18px 8px; text-align:center;}
+  header h1{margin:0; font-size:22px; letter-spacing:2px;}
+  header p{margin:4px 0 0; color:var(--muted); font-size:13px;}
+  .app{display:flex; gap:18px; padding:8px 18px 24px; align-items:flex-start;
+    justify-content:center; flex-wrap:wrap;}
+  .board-area{flex:0 0 auto;}
+  #boardWrap{position:relative; line-height:0;}
+  canvas{display:block; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.45);
+    touch-action:none; cursor:pointer;}
+  .panel{flex:1 1 280px; min-width:280px; max-width:360px; background:var(--panel);
+    border-radius:14px; padding:16px; box-shadow:0 6px 20px rgba(0,0,0,.3);}
+  .group{margin-bottom:16px;}
+  .group h3{margin:0 0 8px; font-size:13px; color:var(--muted); font-weight:600;
+    text-transform:uppercase; letter-spacing:1px;}
+  .btn-row{display:flex; gap:8px; flex-wrap:wrap;}
+  button{appearance:none; border:none; border-radius:9px; padding:9px 12px; font-size:14px;
+    cursor:pointer; background:var(--panel2); color:var(--text); transition:.15s; flex:1 1 auto;}
+  button:hover{filter:brightness(1.12);}
+  button:active{transform:translateY(1px);}
+  button.active{background:var(--accent); color:#fff; font-weight:600;}
+  button.warn{background:#3a2c2c;} button.warn:hover{background:#4a3535;}
+  button.danger{background:var(--danger); color:#fff;}
+  button.ghost{background:transparent; border:1px solid #444; color:var(--muted);}
+  select{width:100%; padding:9px 10px; border-radius:9px; background:var(--panel2);
+    color:var(--text); border:1px solid #444; font-size:14px;}
+  .info{background:var(--panel2); border-radius:10px; padding:12px;}
+  .turn{display:flex; align-items:center; gap:10px; font-size:16px; font-weight:600; margin-bottom:10px;}
+  .stone-dot{width:18px; height:18px; border-radius:50%; background:#111; box-shadow:inset -2px -2px 4px rgba(255,255,255,.15), 0 0 0 1px #000;}
+  .stone-dot.white{background:#fafafa; box-shadow:inset -2px -2px 4px rgba(0,0,0,.18), 0 0 0 1px #bbb;}
+  .stat{display:flex; justify-content:space-between; font-size:13px; color:var(--muted); padding:3px 0;}
+  .stat b{color:var(--text); font-weight:600;}
+  .result{margin-top:10px; padding:10px; border-radius:9px; background:#243018; color:#cde6a0;
+    font-size:14px; display:none;}
+  .result.show{display:block;}
+  .result.over{background:#3a2c2c; color:#ffc7c7;}
+  .hint{font-size:12px; color:var(--muted); line-height:1.6; margin-top:4px;}
+  .sgf-box{width:100%; height:84px; background:#1c1f24; color:#bcd; border:1px solid #444;
+    border-radius:8px; padding:8px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; resize:vertical;}
+  .toast{position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px);
+    background:#000c; color:#fff; padding:10px 18px; border-radius:24px; font-size:14px;
+    opacity:0; pointer-events:none; transition:.25s; z-index:30;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:6px 0 18px;}
+  @media (max-width:720px){
+    .app{flex-direction:column; align-items:center;}
+    .panel{width:100%; max-width:560px;}
+  }
+  /* 玩法说明弹窗 */
+  .modal-mask{position:fixed; inset:0; background:rgba(0,0,0,.62); display:none;
+    align-items:center; justify-content:center; z-index:40; padding:18px;}
+  .modal-mask.show{display:flex;}
+  .modal{background:var(--panel); max-width:600px; width:100%; max-height:86vh; overflow:auto;
+    border-radius:14px; padding:20px 24px 24px; box-shadow:0 20px 60px rgba(0,0,0,.5); position:relative;}
+  .modal h2{margin:0 0 4px; font-size:21px;}
+  .modal .sub{color:var(--muted); font-size:12px; margin:0 0 8px;}
+  .modal h3{margin:18px 0 6px; font-size:15px; color:var(--accent);}
+  .modal p,.modal li{font-size:13.5px; line-height:1.75; color:var(--text);}
+  .modal ul{padding-left:20px; margin:6px 0;}
+  .modal .close{position:sticky; top:0; float:right; margin:-6px -6px 0 0;
+    background:transparent; border:none; color:var(--muted); font-size:22px; cursor:pointer; flex:0;}
+  .modal .close:hover{color:var(--text);}
+  .modal kbd{background:#1c1f24; border:1px solid #444; border-radius:5px; padding:1px 6px; font-size:12px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>单机围棋</h1>
+  <p>纯本地 · 离线运行 · 双人对弈 / 人机对战 · 含启发式 AI 与数子</p>
+</header>
+
+<div class="app">
+  <div class="board-area">
+    <div id="boardWrap"><canvas id="board"></canvas></div>
+  </div>
+
+  <div class="panel">
+    <div class="group">
+      <h3>棋盘</h3>
+      <div class="btn-row" id="sizeRow">
+        <button data-size="9">9 路</button>
+        <button data-size="13">13 路</button>
+        <button data-size="19" class="active">19 路</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>模式</h3>
+      <div class="btn-row" id="modeRow">
+        <button data-mode="pvp" class="active">双人对弈</button>
+        <button data-mode="ai">人机对战</button>
+      </div>
+    </div>
+
+    <div class="group" id="colorGroup" style="display:none">
+      <h3>你的颜色</h3>
+      <div class="btn-row" id="colorRow">
+        <button data-color="1" class="active">执黑（先手）</button>
+        <button data-color="2">执白</button>
+      </div>
+    </div>
+
+    <div class="group" id="levelGroup" style="display:none">
+      <h3>AI 难度</h3>
+      <div class="btn-row" id="levelRow">
+        <button data-level="easy">入门</button>
+        <button data-level="normal" class="active">普通</button>
+        <button data-level="hard">进阶</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>对局操作</h3>
+      <div class="btn-row">
+        <button id="passBtn">停一手（Pass）</button>
+        <button id="undoBtn" class="ghost">悔棋</button>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        <button id="scoreBtn">形势判断</button>
+        <button id="resignBtn" class="warn">认输</button>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        <button id="newBtn" class="danger">重新开始</button>
+      </div>
+        <p class="hint">规则：黑先白后，禁止自杀与立即回提（打劫），无气之子被提。终局双方连续停一手后自动数子（中国规则·面积法 + 贴目）。</p>
+      </div>
+
+      <div class="group">
+        <h3>帮助</h3>
+        <div class="btn-row">
+          <button id="aboutBtn" class="ghost">关于 / 玩法说明</button>
+        </div>
+      </div>
+
+    <div class="group">
+      <h3>棋谱（SGF）</h3>
+      <div class="btn-row">
+        <button id="exportBtn" class="ghost">导出棋谱</button>
+        <button id="copyBtn" class="ghost">复制SGF</button>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        <button id="importBtn" class="ghost">导入棋谱</button>
+      </div>
+      <textarea id="sgfBox" class="sgf-box" placeholder="在此粘贴 SGF 文本后点击「导入棋谱」，或查看导出的棋谱内容。"></textarea>
+    </div>
+
+    <div class="group">
+      <h3>对局信息</h3>
+      <div class="info">
+        <div class="turn"><span id="turnDot" class="stone-dot"></span><span id="turnText">黑方落子</span></div>
+        <div class="stat"><span>手数</span><b id="moveCount">0</b></div>
+        <div class="stat"><span>黑方提子</span><b id="capBlack">0</b></div>
+        <div class="stat"><span>白方提子</span><b id="capWhite">0</b></div>
+        <div class="stat"><span>贴目（Komi）</span><b id="komiText">7.5</b></div>
+        <div class="result" id="resultBox"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="aboutMask">
+  <div class="modal">
+    <button class="close" id="aboutClose" aria-label="关闭">×</button>
+    <h2>关于 · 单机围棋</h2>
+    <p class="sub">纯前端 · 零联网 · 可离线安装为独立应用</p>
+
+    <h3>一、基本规则</h3>
+    <p>棋子落在棋盘的<b>交叉点</b>上，黑先白后，双方轮流落子，落子后不可移动。棋盘可选 9 / 13 / 19 路。</p>
+
+    <h3>二、气与提子</h3>
+    <ul>
+      <li><b>气</b>：棋子上下左右相邻的交叉点中，为空点的数量。</li>
+      <li>当一块棋（相连同色棋子）的全部气被对方占满，即无气时，该块被<b>提掉</b>并移出棋盘。</li>
+      <li>信息栏的"黑方提子 / 白方提子"显示各方提掉的对方棋子总数。</li>
+    </ul>
+
+    <h3>三、禁着</h3>
+    <ul>
+      <li><b>禁止自杀</b>：若落子后己方该块无气、且未提掉对方任何子，则该手非法，不能落。</li>
+      <li><b>打劫（Ko）</b>：禁止"立即回提"形成无限循环。被打劫的点会以<b>红圈</b>标出，该点本轮不可落子，需先在别处走一手后才可回提。</li>
+    </ul>
+
+    <h3>四、终局与数子（中国规则 · 面积法）</h3>
+    <ul>
+      <li>双方都认为无棋可下时，连续两次<b>停一手（Pass）</b>即终局，自动数子。</li>
+      <li>黑方得分 = 黑子数 + 黑方围住的空点（地域）；白方得分 = 白子数 + 白方地域 + <b>贴目</b>（默认 7.5 目）。</li>
+      <li>地域判定：某片空点若只与一种颜色的棋子相邻，则归该色；若同时邻接黑白，则为<b>单官</b>（不计）。</li>
+      <li>得分高者胜，差值为胜负目数。</li>
+    </ul>
+
+    <h3>五、操作说明</h3>
+    <ul>
+      <li><b>落子</b>：点击 / 点按棋盘交叉点；桌面端鼠标悬停有半透明预览。</li>
+      <li><b>停一手（Pass）</b>：放弃本轮落子。</li>
+      <li><b>悔棋</b>：回退一手；人机模式下自动回退到你的回合。</li>
+      <li><b>重新开始</b>：清空棋盘重开一局。</li>
+      <li><b>认输</b>：直接判负。</li>
+      <li><b>形势判断</b>：实时估算双方目数差，不结束对局。</li>
+    </ul>
+
+    <h3>六、对弈模式</h3>
+    <ul>
+      <li><b>双人对弈</b>：同一设备两人轮流落子。</li>
+      <li><b>人机对战</b>：你可选择执黑 / 执白，AI 按难度（入门 / 普通 / 进阶）应对。AI 会提子、打吃、逃征、避免填自己的眼，并在收官阶段合理停手。</li>
+    </ul>
+
+    <h3>七、棋谱（SGF）</h3>
+    <ul>
+      <li><b>导出棋谱</b>：下载 <kbd>.sgf</kbd> 文件，可用其他围棋软件打开复盘。</li>
+      <li><b>复制 SGF</b>：复制棋谱文本到剪贴板。</li>
+      <li><b>导入棋谱</b>：把 SGF 文本粘贴到文本框后点击导入，自动还原棋局、棋盘大小与贴目。</li>
+    </ul>
+
+    <h3>八、关于本应用</h3>
+    <p>本应用为纯前端单页程序，<b>全部运算在本地完成，无需联网、无后台</b>。你可以用浏览器直接打开，也可通过浏览器的"添加到主屏幕 / 安装应用"把它变成独立离线 APP，随时随地单机对弈。</p>
+  </div>
+</div>
+
+<footer>单击 / 点按棋盘落子 · 支持手机与桌面 · 全部运算在本地完成，无需联网</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============ 围棋核心规则引擎 ============ */
+const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+let size = 19;
+let KOMI = 7.5;
+let board = new Int8Array(size*size);   // 0空 1黑 2白
+let current = 1;                        // 当前落子方
+let captures = {1:0, 2:0};              // 各方提子数（captures[1]=黑提白子数）
+let koPoint = -1;                       // 打劫禁着点
+let lastMove = -1;                      // 最后一手位置
+let consecutivePasses = 0;              // 连续停手数
+let history = [];                       // 悔棋栈
+let moves = [];                         // 棋谱（用于SGF）
+let gameOver = false;
+let mode = 'pvp';                       // pvp | ai
+let humanColor = 1;                     // 人机模式下的玩家颜色
+let aiLevel = 'normal';
+let aiToken = 0;                        // 防止过期AI调度
+
+const idx = (x,y)=> y*size + x;
+const xy  = i => [i % size, Math.floor(i / size)];
+const inB = (x,y)=> x>=0 && x<size && y>=0 && y<size;
+
+function newGame(reset){
+  board = new Int8Array(size*size);
+  current = 1; captures = {1:0,2:0}; koPoint = -1; lastMove = -1;
+  consecutivePasses = 0; history = []; moves = []; gameOver = false;
+  hideResult();
+  updateInfo(); render();
+}
+
+function getGroup(b, start){
+  const color = b[start];
+  const stones = []; const lib = new Set(); const seen = new Set([start]);
+  const stack = [start];
+  while(stack.length){
+    const i = stack.pop(); stones.push(i);
+    const [x,y] = xy(i);
+    for(const [dx,dy] of DIRS){
+      const nx=x+dx, ny=y+dy; if(!inB(nx,ny)) continue;
+      const ni = idx(nx,ny); const c = b[ni];
+      if(c===0) lib.add(ni);
+      else if(c===color && !seen.has(ni)){ seen.add(ni); stack.push(ni); }
+    }
+  }
+  return {stones, lib};
+}
+
+// 尝试落子，返回 {ok, board, captured[], newKo}
+function tryPlay(b, i, color){
+  if(b[i]!==0) return {ok:false, reason:'occupied'};
+  if(i===koPoint) return {ok:false, reason:'ko'};
+  const nb = b.slice(); nb[i] = color;
+  const opp = color===1?2:1;
+  const captured = [];
+  const capSet = new Set();
+  const [x,y] = xy(i);
+  for(const [dx,dy] of DIRS){
+    const nx=x+dx, ny=y+dy; if(!inB(nx,ny)) continue;
+    const ni = idx(nx,ny);
+    if(nb[ni]===opp){
+      const g = getGroup(nb, ni);
+      if(g.lib.size===0) for(const s of g.stones){ if(!capSet.has(s)){ capSet.add(s); captured.push(s); } }
+    }
+  }
+  for(const c of captured) nb[c] = 0;
+  const own = getGroup(nb, i);
+  if(own.lib.size===0 && captured.length===0) return {ok:false, reason:'suicide'};
+  let newKo = -1;
+  if(captured.length===1){
+    const og = getGroup(nb, i);
+    if(og.stones.length===1 && og.lib.size===1) newKo = captured[0];
+  }
+  return {ok:true, board:nb, captured, newKo};
+}
+
+function pushHistory(){
+  history.push({board:board.slice(), current, cap:{...captures}, ko:koPoint,
+    last:lastMove, passes:consecutivePasses, moves:moves.slice()});
+}
+
+function playMove(i){
+  if(gameOver) return false;
+  const res = tryPlay(board, i, current);
+  if(!res.ok) return false;
+  pushHistory();
+  board = res.board;
+  captures[current] += res.captured.length;
+  koPoint = res.newKo;
+  lastMove = i; consecutivePasses = 0;
+  const [x,y] = xy(i); moves.push({color:current, x, y});
+  current = current===1?2:1;
+  return true;
+}
+
+function passMove(){
+  if(gameOver) return;
+  pushHistory();
+  consecutivePasses++; lastMove = -1; koPoint = -1;
+  moves.push({color:current, pass:true});
+  current = current===1?2:1;
+  if(consecutivePasses>=2) endGame(false);
+}
+
+function undo(){
+  if(history.length===0) return;
+  let h;
+  // 人机模式退回一手后若轮到AI，再退一手回到玩家
+  h = history.pop(); moves = h.moves;
+  board = h.board; current = h.current; captures = h.cap; koPoint = h.ko;
+  lastMove = h.last; consecutivePasses = h.passes;
+  if(mode==='ai' && current === (humanColor===1?2:1) && history.length>0){
+    h = history.pop(); moves = h.moves;
+    board = h.board; current = h.current; captures = h.cap; koPoint = h.ko;
+    lastMove = h.last; consecutivePasses = h.passes;
+  }
+  gameOver = false; hideResult(); updateInfo(); render();
+}
+
+function resign(){
+  if(gameOver) return;
+  gameOver = true;
+  const winner = current===1?2:1;
+  showResult(`${winner===1?'黑方':'白方'}认输 — ${current===1?'黑方':'白方'}获胜`, true);
+  render();
+}
+
+// 面积法（中国规则）形势评估
+function areaEstimate(){
+  let B=0, W=0; for(let i=0;i<board.length;i++){ if(board[i]===1)B++; else if(board[i]===2)W++; }
+  const seen = new Uint8Array(board.length);
+  let bt=0, wt=0, neutral=0;
+  for(let i=0;i<board.length;i++){
+    if(board[i]!==0 || seen[i]) continue;
+    const region=[]; const stack=[i]; seen[i]=1; let b=false, w=false;
+    while(stack.length){
+      const j=stack.pop(); region.push(j);
+      const [x,y]=xy(j);
+      for(const [dx,dy] of DIRS){
+        const nx=x+dx, ny=y+dy; if(!inB(nx,ny)) continue;
+        const nj=idx(nx,ny);
+        if(board[nj]===0 && !seen[nj]){ seen[nj]=1; stack.push(nj); }
+        else if(board[nj]===1) b=true;
+        else if(board[nj]===2) w=true;
+      }
+    }
+    if(b && !w) bt += region.length;
+    else if(w && !b) wt += region.length;
+    else neutral += region.length;
+  }
+  const blackArea = B + bt;
+  const whiteArea = W + wt + KOMI;
+  return {B,W,bt,wt,neutral,blackArea,whiteArea,
+    diff: blackArea - whiteArea};
+}
+
+function endGame(estimateOnly){
+  gameOver = true;
+  const e = areaEstimate();
+  const winner = e.diff>0?1:2;
+  const margin = Math.abs(e.diff);
+  let msg = `终局数子：黑 ${e.blackArea}（地 ${e.bt} + 子 ${e.B}）　白 ${e.whiteArea}（地 ${e.wt} + 子 ${e.W} + 贴目 ${KOMI}）\n`;
+  msg += `结果：${winner===1?'黑方':'白方'}胜 ${margin.toFixed(1)} 目`;
+  showResult(msg, true);
+  render();
+}
+
+function showResult(text, over){
+  const box = document.getElementById('resultBox');
+  box.textContent = text; box.classList.add('show');
+  box.classList.toggle('over', !!over);
+}
+function hideResult(){ const box=document.getElementById('resultBox'); box.classList.remove('show'); }
+
+// 真眼判定（用于AI避免填自己的眼）
+function isTrueEye(b, i, color){
+  if(b[i]!==0) return false;
+  const [x,y]=xy(i);
+  for(const [dx,dy] of DIRS){
+    const nx=x+dx, ny=y+dy; if(!inB(nx,ny)) continue;
+    if(b[idx(nx,ny)]!==color) return false;
+  }
+  let oppDiag=0, edge=0; const oc = color===1?2:1;
+  for(const [dx,dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
+    const nx=x+dx, ny=y+dy;
+    if(!inB(nx,ny)){ edge++; continue; }
+    if(b[idx(nx,ny)]===oc) oppDiag++;
+  }
+  return edge>0 ? oppDiag===0 : oppDiag<=1;
+}
+
+/* ============ 启发式 AI ============ */
+function chooseAI(){
+  const color = humanColor===1?2:1;   // AI颜色
+  const opp = color===1?2:1;
+  const legal = [];
+  for(let i=0;i<board.length;i++){
+    if(board[i]!==0) continue;
+    if(i===koPoint) continue;
+    const r = tryPlay(board, i, color);
+    if(r.ok) legal.push({i, r});
+  }
+  if(legal.length===0) return {pass:true};
+
+  let noise = aiLevel==='easy'?9 : aiLevel==='hard'?1.5 : 4;
+  let best=null, bestScore=-Infinity;
+  for(const m of legal){
+    let s = scoreMove(m, color, opp, noise);
+    if(s>bestScore){ bestScore=s; best=m; }
+  }
+  // 对手已停手且无有效手段时，停手终局
+  if(consecutivePasses>=1 && bestScore < 6) return {pass:true};
+  return best;
+}
+
+function scoreMove(m, color, opp, noise){
+  const b = m.r.board;
+  let s = 0;
+  // 提子
+  s += m.r.captured.length * 16;
+  // 打吃对手
+  const [x,y]=xy(m.i);
+  for(const [dx,dy] of DIRS){
+    const nx=x+dx, ny=y+dy; if(!inB(nx,ny)) continue;
+    const ni=idx(nx,ny);
+    if(b[ni]===opp){ const g=getGroup(b,ni); if(g.lib.size===1) s+=10; }
+  }
+  // 自身气数
+  const own=getGroup(b, m.i);
+  if(own.lib.size===1 && m.r.captured.length===0) s -= 12;   // 自送（self-atari）
+  // 解救己方被打吃的棋（落子前邻己子气=1）
+  for(const [dx,dy] of DIRS){
+    const nx=x+dx, ny=y+dy; if(!inB(nx,ny)) continue;
+    const ni=idx(nx,ny);
+    if(board[ni]===color){ const g=getGroup(board,ni); if(g.lib.size===1) s+=11; }
+  }
+  // 避免填自己的真眼
+  if(isTrueEye(board, m.i, color)) s -= 60;
+  // 位置价值：靠近棋子更积极
+  let near=0;
+  for(const [dx,dy] of DIRS){
+    const nx=x+dx, ny=y+dy; if(!inB(nx,ny)) continue;
+    if(board[idx(nx,ny)]!==0) near++;
+  }
+  s += near*1.6;
+  // 早期避免贴边
+  const edgeDist = Math.min(x, y, size-1-x, size-1-y);
+  if(moves.length < size*size*0.25 && edgeDist===0) s -= 3;
+  // 星位/小目偏好（早期）
+  if(moves.length < 12){
+    const sp = starPoints(size);
+    if(sp.some(p=>p[0]===x && p[1]===y)) s += 2;
+  }
+  s += (Math.random()-0.5) * noise;
+  return s;
+}
+
+function scheduleAI(){
+  const myToken = ++aiToken;
+  setTimeout(()=>{ if(myToken===aiToken && !gameOver && mode==='ai' && current!==humanColor) aiMove(); }, 280);
+}
+function aiMove(){
+  if(gameOver || mode!=='ai' || current===humanColor) return;
+  const dec = chooseAI();
+  if(dec && dec.pass){ passMove(); }
+  else if(dec){ playMove(dec.i); }
+  updateInfo(); render();
+  if(!gameOver && mode==='ai' && current!==humanColor) scheduleAI();
+}
+
+/* ============ 棋盘绘制 ============ */
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+let geom = null;
+
+function starPoints(n){
+  if(n===9)  return [[2,2],[6,2],[2,6],[6,6],[4,4]];
+  if(n===13) return [[3,3],[9,3],[3,9],[9,9],[6,6]];
+  return [[3,3],[9,3],[15,3],[3,9],[9,9],[15,9],[3,15],[9,15],[15,15]];
+}
+function computeGeom(px){
+  const margin = Math.max(14, px*0.05);
+  const gap = (px - 2*margin)/(size-1);
+  return {px, margin, gap, r: gap*0.47};
+}
+function resizeCanvas(){
+  const wrap = document.getElementById('boardWrap');
+  const avail = Math.min(wrap.clientWidth || 520, window.innerWidth-36, window.innerHeight*0.74);
+  const px = Math.max(260, Math.floor(avail));
+  canvas.style.width = px+'px'; canvas.style.height = px+'px';
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(px*dpr); canvas.height = Math.round(px*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  geom = computeGeom(px);
+  render();
+}
+function gx(x){ return geom.margin + x*geom.gap; }
+function gy(y){ return geom.margin + y*geom.gap; }
+
+function render(){
+  if(!geom) return;
+  const {px, margin, gap, r} = geom;
+  // 木纹底
+  const grad = ctx.createLinearGradient(0,0,px,px);
+  grad.addColorStop(0,'#e8b974'); grad.addColorStop(1,'#d59d4f');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,px,px);
+  // 细纹（轻）
+  ctx.strokeStyle='rgba(120,80,20,.06)'; ctx.lineWidth=1;
+  for(let k=0;k<px;k+=7){ ctx.beginPath(); ctx.moveTo(0,k); ctx.lineTo(px,k); ctx.stroke(); }
+  // 网格线
+  ctx.strokeStyle='#3a2a14'; ctx.lineWidth=Math.max(1, gap*0.03);
+  ctx.beginPath();
+  for(let i=0;i<size;i++){
+    ctx.moveTo(gx(0), gy(i)); ctx.lineTo(gx(size-1), gy(i));
+    ctx.moveTo(gx(i), gy(0)); ctx.lineTo(gx(i), gy(size-1));
+  }
+  ctx.stroke();
+  // 星位
+  ctx.fillStyle='#3a2a14';
+  for(const [sx,sy] of starPoints(size)){
+    ctx.beginPath(); ctx.arc(gx(sx), gy(sy), Math.max(2.5,gap*0.09), 0, Math.PI*2); ctx.fill();
+  }
+  // 坐标
+  ctx.fillStyle='#5a4220'; ctx.font=`${Math.max(9,gap*0.32)}px sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const letters='ABCDEFGHJKLMNOPQRST'; // 跳过 I
+  for(let i=0;i<size;i++){
+    ctx.fillText(letters[i], gx(i), margin*0.5);
+    ctx.fillText(letters[i], gx(i), px-margin*0.5);
+    ctx.fillText(String(size-i), margin*0.45, gy(i));
+    ctx.fillText(String(size-i), px-margin*0.45, gy(i));
+  }
+  // 棋子
+  for(let i=0;i<board.length;i++){
+    if(board[i]!==0) drawStone(i, board[i]);
+  }
+  // 打劫点提示
+  if(koPoint>=0){
+    ctx.strokeStyle='rgba(255,80,80,.9)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(gx(xy(koPoint)[0]), gy(xy(koPoint)[1]), r*0.5, 0, Math.PI*2); ctx.stroke();
+  }
+  // 最后一手标记
+  if(lastMove>=0 && board[lastMove]!==0){
+    const [x,y]=xy(lastMove);
+    ctx.fillStyle = board[lastMove]===1 ? '#fafafa' : '#111';
+    ctx.beginPath(); ctx.arc(gx(x), gy(y), r*0.22, 0, Math.PI*2); ctx.fill();
+  }
+  // 悬停预览
+  if(hover && board[hover]<0){
+    const [x,y]=xy(-hover-1);
+    if(canPreview(x,y)) drawStoneVirtual(x,y, current, 0.4);
+  }
+}
+function canPreview(x,y){
+  if(gameOver) return false;
+  if(mode==='ai' && current===humanColor) return true;
+  if(mode==='pvp') return true;
+  return false;
+}
+function drawStone(i, color){
+  const [x,y]=xy(i); drawStoneVirtual(x,y,color,1);
+}
+function drawStoneVirtual(x,y,color,alpha){
+  const cx=gx(x), cy=gy(y), r=geom.r;
+  ctx.save(); ctx.globalAlpha=alpha;
+  ctx.shadowColor='rgba(0,0,0,.4)'; ctx.shadowBlur=geom.gap*0.12; ctx.shadowOffsetY=geom.gap*0.05;
+  const g = ctx.createRadialGradient(cx-r*0.35, cy-r*0.35, r*0.1, cx, cy, r);
+  if(color===1){ g.addColorStop(0,'#5a5a5a'); g.addColorStop(1,'#0a0a0a'); }
+  else { g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#cfcfcf'); }
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+/* ============ 交互 ============ */
+let hover = 0; // 0=无；>0 表示悬停点 -(idx+1)
+
+function eventToGrid(e){
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left), cy = (e.clientY - rect.top);
+  const fx = (cx - geom.margin)/geom.gap, fy = (cy - geom.margin)/geom.gap;
+  const x = Math.round(fx), y = Math.round(fy);
+  if(x<0||x>=size||y<0||y>=size) return null;
+  // 距离阈值
+  if(Math.abs(fx-x)>0.5 || Math.abs(fy-y)>0.5) return null;
+  return {x,y};
+}
+function tryHumanMove(x,y){
+  const i = idx(x,y);
+  if(mode==='ai' && current!==humanColor) return;
+  if(playMove(i)){
+    updateInfo(); render();
+    if(!gameOver && mode==='ai' && current!==humanColor) scheduleAI();
+  } else {
+    toast('此处不能落子（已有子 / 自杀 / 打劫）');
+  }
+}
+canvas.addEventListener('click', e=>{
+  const p = eventToGrid(e); if(!p) return;
+  tryHumanMove(p.x, p.y);
+});
+canvas.addEventListener('mousemove', e=>{
+  const p = eventToGrid(e);
+  if(p && canPreview(p.x,p.y) && board[idx(p.x,p.y)]===0){
+    hover = -(idx(p.x,p.y)+1); render();
+  } else if(hover!==0){ hover=0; render(); }
+});
+canvas.addEventListener('mouseleave', ()=>{ if(hover!==0){ hover=0; render(); } });
+canvas.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  const t=e.touches[0]; const p=eventToGrid(t); if(!p) return;
+  tryHumanMove(p.x,p.y);
+}, {passive:false});
+
+/* ============ 信息面板 ============ */
+function updateInfo(){
+  document.getElementById('turnDot').className = 'stone-dot' + (current===2?' white':'');
+  document.getElementById('turnText').textContent =
+    gameOver ? '对局结束' : (current===1?'黑方落子':'白方落子');
+  document.getElementById('moveCount').textContent = moves.filter(m=>!m.pass).length;
+  document.getElementById('capBlack').textContent = captures[1];
+  document.getElementById('capWhite').textContent = captures[2];
+  document.getElementById('komiText').textContent = KOMI;
+}
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+/* ============ SGF ============ */
+function toSGF(){
+  let s=`(;GM[1]FF[4]CA[UTF-8]SZ[${size}]KM[${KOMI}]`;
+  const col = c => String.fromCharCode(97+c);
+  for(const m of moves){
+    const L = m.color===1?'B':'W';
+    s += m.pass ? `;${L}[]` : `;${L}[${col(m.x)}${col(m.y)}]`;
+  }
+  return s+')';
+}
+function fromSGF(text){
+  const m = text.match(/SZ\[(\d+)\]/); if(m) size = parseInt(m[1],10);
+  if(!(size===9||size===13||size===19)) size=19;
+  const km = text.match(/KM\[([\d.]+)\]/); if(km) KOMI = parseFloat(km[1]);
+  newGame(); setSizeButtons(); document.getElementById('komiText').textContent=KOMI; resizeCanvas();
+  const re=/;([BW])\[([a-s])([a-s])\]/g; let mm;
+  while((mm=re.exec(text))){
+    const color = mm[1]==='B'?1:2;
+    const x = mm[2].charCodeAt(0)-97, y = mm[3].charCodeAt(0)-97;
+    if(x<0||x>=size||y<0||y>=size) continue;
+    current = color;
+    if(!playMove(idx(x,y))) break;
+  }
+  updateInfo(); render();
+}
+
+/* ============ 控件绑定 ============ */
+function setSizeButtons(){
+  document.querySelectorAll('#sizeRow button').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.size,10)===size);
+  });
+}
+document.getElementById('sizeRow').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  size=parseInt(b.dataset.size,10); setSizeButtons(); newGame(); resizeCanvas();
+});
+document.getElementById('modeRow').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  mode=b.dataset.mode;
+  document.querySelectorAll('#modeRow button').forEach(x=>x.classList.toggle('active',x===b));
+  const show = mode==='ai';
+  document.getElementById('colorGroup').style.display = show?'block':'none';
+  document.getElementById('levelGroup').style.display = show?'block':'none';
+  newGame();
+  if(mode==='ai' && current!==humanColor) scheduleAI();
+});
+document.getElementById('colorRow').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  humanColor=parseInt(b.dataset.color,10);
+  document.querySelectorAll('#colorRow button').forEach(x=>x.classList.toggle('active',x===b));
+  newGame();
+  if(mode==='ai' && current!==humanColor) scheduleAI();
+});
+document.getElementById('levelRow').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  aiLevel=b.dataset.level;
+  document.querySelectorAll('#levelRow button').forEach(x=>x.classList.toggle('active',x===b));
+});
+document.getElementById('passBtn').onclick = ()=>{
+  if(gameOver) return;
+  passMove(); updateInfo(); render();
+  if(!gameOver && mode==='ai' && current!==humanColor) scheduleAI();
+};
+document.getElementById('undoBtn').onclick = undo;
+document.getElementById('resignBtn').onclick = resign;
+document.getElementById('newBtn').onclick = ()=>{ newGame(); resizeCanvas();
+  if(mode==='ai' && current!==humanColor) scheduleAI(); };
+document.getElementById('scoreBtn').onclick = ()=>{
+  if(gameOver) return;
+  const e=areaEstimate();
+  const diff=e.diff;
+  const lead = diff>0?'黑方领先':(diff<0?'白方领先':'均势');
+  toast(`形势：${lead} ${Math.abs(diff).toFixed(1)} 目（黑 ${e.blackArea} / 白 ${e.whiteArea}）`);
+  showResult(`形势判断（暂不计终局）\n黑 ${e.blackArea}（子 ${e.B}+地 ${e.bt}）\n白 ${e.whiteArea}（子 ${e.W}+地 ${e.wt}+贴 ${KOMI}）\n${lead} ${Math.abs(diff).toFixed(1)} 目`, false);
+};
+document.getElementById('exportBtn').onclick = ()=>{
+  const sgf=toSGF();
+  document.getElementById('sgfBox').value=sgf;
+  const blob=new Blob([sgf],{type:'application/x-go-sgf'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`weiqi-${size}x${size}-${Date.now()}.sgf`; a.click();
+  URL.revokeObjectURL(a.href); toast('已导出 SGF 棋谱');
+};
+document.getElementById('copyBtn').onclick = ()=>{
+  const sgf=toSGF(); document.getElementById('sgfBox').value=sgf;
+  navigator.clipboard?.writeText(sgf).then(()=>toast('SGF 已复制')).catch(()=>toast('复制失败，已填入文本框'));
+};
+document.getElementById('importBtn').onclick = ()=>{
+  const txt=document.getElementById('sgfBox').value.trim();
+  if(!txt){ toast('请先在文本框粘贴 SGF'); return; }
+  try{ fromSGF(txt); toast('棋谱导入成功'); }
+  catch(err){ toast('SGF 解析失败'); }
+};
+
+window.addEventListener('resize', resizeCanvas);
+
+// 关于 / 玩法说明 弹窗
+const aboutMask = document.getElementById('aboutMask');
+document.getElementById('aboutBtn').onclick = ()=> aboutMask.classList.add('show');
+document.getElementById('aboutClose').onclick = ()=> aboutMask.classList.remove('show');
+aboutMask.addEventListener('click', e=>{ if(e.target===aboutMask) aboutMask.classList.remove('show'); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') aboutMask.classList.remove('show'); });
+
+// 注册 Service Worker：PWA 离线安装（仅 http/https 生效，file:// 直接打开同样可玩）
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
+// 初始化
+setSizeButtons(); newGame(); resizeCanvas();
+if(mode==='ai' && current!==humanColor) scheduleAI();
+</script>
+</body>
+</html>
